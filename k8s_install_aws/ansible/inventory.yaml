@@ -1,0 +1,12 @@
+managers:
+  hosts:  #supported single manager only for now
+    manager:
+      ansible_host: 13.37.245.112
+      ansible_user: ubuntu
+      ansible_ssh_private_key_file: /Users/imitina/.ssh/ec2key.pem
+workers:
+  hosts:
+    worker:
+      ansible_host: 13.37.240.31
+      ansible_user: ubuntu
+      ansible_ssh_private_key_file: /Users/imitina/.ssh/ec2key.pem

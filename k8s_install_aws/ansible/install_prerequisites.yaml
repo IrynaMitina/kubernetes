@@ -1,0 +1,19 @@
+---
+- hosts: "managers, workers"
+  remote_user: ubuntu
+  become: yes
+  become_method: sudo
+  become_user: root
+  connection: ssh
+
+  tasks:
+  - name: install prerequisites
+    apt: 
+      update_cache: true  #apt-get update
+      name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - apt-transport-https
+      state: present

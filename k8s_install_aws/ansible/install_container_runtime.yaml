@@ -1,0 +1,62 @@
+---
+- hosts: "managers, workers"
+  remote_user: ubuntu
+  become: yes
+  become_method: sudo
+  become_user: root
+  connection: ssh
+  
+  tasks:
+  - name: forwarding IPv4 and letting iptables see bridged traffic
+    block:
+      - name: configure persistent loading of modules
+        copy:
+          dest: "/etc/modules-load.d/containerd.conf"
+          content: |
+            overlay
+            br_netfilter
+      - name: load overlay at runtime
+        command: modprobe overlay
+      - name: load br_netfilter at runtime
+        command: modprobe br_netfilter
+
+      - name: sysctl params required by setup, params persist across reboots
+        copy:
+          dest: "/etc/sysctl.d/kubernetes.conf"
+          content: |
+            net.bridge.bridge-nf-call-ip6tables = 1
+            net.bridge.bridge-nf-call-iptables = 1
+            net.ipv4.ip_forward = 1  
+      - name: apply sysctl params without reboot
+        command: sysctl --system
+
+  - name: install conteinerd
+    block:
+    - name: add docker official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+    - name: add docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable
+        state: present
+        filename: docker
+        update_cache: yes
+
+    - name: Install containerd.
+      apt: 
+        name:
+          - containerd.io
+        state: present
+    - name: enable and start containerd service
+      systemd: 
+        name: containerd
+        state: restarted
+        enabled: yes
+        daemon-reload: yes
+    - name: configure containerd with cgroups
+      shell: containerd config default | sed -r -e '/\[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options\]$/a\            SystemdCgroup = true' | tee /etc/containerd/config.toml
+    - name: restart containerd
+      systemd: 
+        name: containerd
+        state: restarted

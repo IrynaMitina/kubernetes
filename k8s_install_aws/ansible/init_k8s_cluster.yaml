@@ -1,0 +1,63 @@
+---
+- hosts: "managers"
+  remote_user: ubuntu
+  become: yes
+  become_method: sudo
+  become_user: root
+  connection: ssh
+
+  tasks:
+  - name: init k8s cluster
+    command: kubeadm init --pod-network-cidr=10.32.0.0/12 --ignore-preflight-errors=NumCPU --ignore-preflight-errors=Mem
+    run_once: true  #run on first manager node
+  - pause: seconds=30
+
+  - name: generate join command for workers
+    block:
+    - name: get worker join token
+      shell: kubeadm token create  --print-join-command
+      register: kubernetes_join_command
+    - debug:
+        msg: "{{ kubernetes_join_command.stdout }}"
+    - name: save join command
+      become: false
+      local_action: copy content="{{ kubernetes_join_command.stdout_lines[0] }}" dest="/tmp/kubernetes_join_command" mode=0777
+
+  - name: configure kubectl for user
+    block:
+    - name: mkdir -p ~/.kube
+      file: 
+        path: /home/{{ ansible_user }}/.kube
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: 0755
+    - name: cp  /etc/kubernetes/admin.conf ~/.kube/config
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/{{ ansible_user }}/.kube/config
+        remote_src: yes
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+
+- hosts: "workers"
+  remote_user: ubuntu
+  become: yes
+  become_method: sudo
+  become_user: root
+  connection: ssh
+
+  tasks:
+  - name: join worker to k8s cluster
+    block:
+    - name: cp join command to worker node
+      copy:
+        src: /tmp/kubernetes_join_command
+        dest: /tmp/kubernetes_join_command
+        mode: 0777   
+    - name: join Worker node
+      command: sh /tmp/kubernetes_join_command
+      register: joined_or_not
+    - debug:
+        msg: "{{ joined_or_not.stdout }}"

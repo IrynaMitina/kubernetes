@@ -1,0 +1,31 @@
+---
+- hosts: "managers, workers"
+  remote_user: ubuntu
+  become: yes
+  become_method: sudo
+  become_user: root
+  connection: ssh
+  
+  tasks:
+  - name: add google official GPG key
+    apt_key:
+      url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+      state: present
+  - name: add kubernetes repository
+    apt_repository:
+      repo: deb http://apt.kubernetes.io/ kubernetes-xenial main 
+      state: present
+      filename: kubernetes
+      mode: 0600
+  - name: install kubeadm, kubectl, kubelet
+    apt: 
+      update_cache: true  #apt-get update
+      name:
+        - kubeadm
+        - kubectl
+        - kubelet
+      state: present
+  - name: enable service kubelet
+    systemd: 
+        name: kubelet
+        enabled: yes

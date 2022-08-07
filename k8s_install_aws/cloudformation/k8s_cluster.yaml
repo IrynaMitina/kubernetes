@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: kubernetes-cluster-2nodes-t2micro
+Resources:         
+  K8sManagerNode:
+    Type: AWS::EC2::Instance
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref K8sNodeLaunchTemplate
+        Version: !GetAtt K8sNodeLaunchTemplate.LatestVersionNumber
+      SecurityGroups: ["ssh-sg", "weave-net-sg", "kubernetes-master-sg", "kubernetes-worker-sg"]
+      Tags:
+        - Key: Name
+          Value: k8s-manager
+
+  K8sWorkerNode:
+    Type: AWS::EC2::Instance
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref K8sNodeLaunchTemplate
+        Version: !GetAtt K8sNodeLaunchTemplate.LatestVersionNumber
+      SecurityGroups: ["ssh-sg", "kubernetes-worker-sg"]
+      Tags:
+        - Key: Name
+          Value: k8s-worker
+          
+  K8sNodeLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties: 
+      LaunchTemplateData: 
+        ImageId: ami-09e513e9eacab10c1 #ubuntu server 22.04 LTS, 64-bit x86
+        InstanceType: t2.micro
+        KeyName: ec2key
+
+Outputs:
+  k8sManagerPublicIP:
+    Description: k8s-manager public IP
+    Value: !GetAtt [K8sManagerNode, PublicIp]
+  k8sWorkerPublicIP:
+    Description: k8s-worker public IP
+    Value: !GetAtt [K8sWorkerNode, PublicIp]
